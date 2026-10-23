@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	liboci "github.com/ckotzbauer/libk8soci/pkg/oci"
+	dockercreds "github.com/docker/cli/cli/config/credentials"
 	"github.com/google/go-containerregistry/pkg/authn"
 	ggcrremote "github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/sirupsen/logrus"
@@ -59,6 +60,10 @@ func (c *tokenCache) put(registry, username, password string, expires time.Time)
 // via PullSecrets (libk8soci) or Cloud-Provider-Fallbacks (GCP / AWS ECR).
 func ResolveCredentials(img *liboci.RegistryImage, proxyRegistryMap map[string]string) []image.RegistryCredentials {
 	credentials := liboci.ConvertSecrets(*img, proxyRegistryMap)
+	for i := range credentials {
+		// docker-config keys can be URLs (e.g. https://index.docker.io/v1/), but stereoscope only matches bare hostnames
+		credentials[i].Authority = dockercreds.ConvertToHostname(credentials[i].Authority)
+	}
 
 	switch {
 	case hasUsableCredentials(credentials):
